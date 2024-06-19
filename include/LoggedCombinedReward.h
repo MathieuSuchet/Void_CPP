@@ -2,6 +2,13 @@
 #include <RLGymSim_CPP/Utils/RewardFunctions/RewardFunction.h>
 #include <numeric>
 #include <RLGymPPO_CPP/Util/Report.h>
+#include "../RLGymPPO_CPP/libsrc/json/nlohmann/json.hpp"
+
+using json = nlohmann::json;
+
+struct RewardConfig {
+	virtual void to_json(json& j) = 0;
+};
 
 class LoggableReward : public RLGSC::RewardFunction {
 public:
@@ -11,6 +18,10 @@ public:
 	virtual void ClearChanges();
 	virtual RLGSC::FList GetAllRewards(const RLGSC::GameState& state, const RLGSC::ActionSet& prevActions, bool final) override;
 	std::vector<std::pair<std::string, RLGSC::FList>> changes = {};
+
+	virtual RewardConfig* GetConfig() = 0;
+
+protected:
 };
 
 

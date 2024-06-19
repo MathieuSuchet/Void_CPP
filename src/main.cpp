@@ -135,49 +135,54 @@ EnvCreateResult EnvCreateFunc() {
 	constexpr int TICK_SKIP = 8;
 	constexpr float NO_TOUCH_TIMEOUT_SECS = 7.f;
 
-	PinchWallSetupReward::PinchWallSetupArgs args(
-		{
-			.creepingDistance = 2000.0f,
-			.groundBanDistance = 1000.0f,
-			.maxDistToTrigger = 4000.0f,
-		},
-		{
-			.hasFlipReward = 1.0f,
-			.hasFlipPunishment = 1.0f,
-			.maxDistance = 50.0f,
-			.hasFlipRewardWhenBall = 20.0f,
-			.hasFlipPunishmentWhenBall = -20.0f
-		},
-		{
-			.similarityBallAgentReward = 1.0f,
-			.similarityBallAgentThresh = 0.9f,
-			.similarityBallWallThresh = 0.9f,
-		},
-		{
-			.groundBanPunishment = -0.1f,
-			.groundBanReward = 1.0f,
-			.creepingDistanceReward = 0.001f
-		},
-		{
-			.ballDistReduction = 500.0f,
-			.speedMatchW = 1.0f,
-			.agentDistToBallThresh = 500.0f,
-			.ballOffsetX = 200.0f,
-			.ballOffsetY = 200.0f,
-			.behindTheBallReward = 0.01f
-		},
-		{
-			.wallMinHeightToPinch = 150.0f
-		},
-		{
-			.ballHandling = {
-				.ballVelW = 1000.0f,
-				.touchW = 20.0f
+	PinchWallSetupReward::PinchWallSetupArgs args =
+	{
+			{
+				.name = "PinchWallConfig",
+				.weight = 1
+			},
+			{
+				.creepingDistance = 2000.0f,
+				.groundBanDistance = 1000.0f,
+				.maxDistToTrigger = 4000.0f,
+			},
+			{
+				.hasFlipReward = 1.0f,
+				.hasFlipPunishment = 1.0f,
+				.maxDistance = 50.0f,
+				.hasFlipRewardWhenBall = 20.0f,
+				.hasFlipPunishmentWhenBall = -20.0f
+			},
+			{
+				.similarityBallAgentReward = 1.0f,
+				.similarityBallAgentThresh = 0.9f,
+				.similarityBallWallThresh = 0.9f,
+			},
+			{
+				.groundBanPunishment = -0.1f,
+				.groundBanReward = 1.0f,
+				.creepingDistanceReward = 0.001f
+			},
+			{
+				.ballDistReduction = 500.0f,
+				.speedMatchW = 1.0f,
+				.agentDistToBallThresh = 500.0f,
+				.ballOffsetX = 200.0f,
+				.ballOffsetY = 200.0f,
+				.behindTheBallReward = 0.01f
+			},
+			{
+				.wallMinHeightToPinch = 150.0f
+			},
+			{
+				.ballHandling = {
+					.ballVelW = 1000.0f,
+					.touchW = 20.0f
+				}
 			}
-		}
-	);
+	};
 
-	PinchCeilingSetupReward::PinchCeilingSetupArgs pinchCeilingArgs = {
+	PinchCeilingSetupReward::PinchCeilingSetupArgs pinchCeilingArgs(
 		{
 			.agentSimilarity =
 			{
@@ -219,17 +224,25 @@ EnvCreateResult EnvCreateFunc() {
 				.touchW = 200.0f
 			}
 		}
-	};
+	});
 
 	auto rewards = new LoggedCombinedReward( // Format is { RewardFunc(), weight, name }
 		{
 			//{new PinchWallSetupReward(args), 1.0f, "WallPinchReward"},
-			{new PinchCeilingSetupReward(pinchCeilingArgs), 1.0f, "CeilingPinchReward"},
+			{new PinchCeilingSetupReward(new PinchCeilingSetupReward::PinchCeilingSetupArgs(pinchCeilingArgs)), 1.0f, "CeilingPinchReward"},
 			//{new PinchCornerSetupReward({}), 1.0f, "CornerPinchReward"},
 			//{new PinchTeamSetupReward({}), 1.0f, "TeamPinchReward"},
 		},
 		false
 	);
+
+	for (int i = 0; i < rewards->rewardFuncs.size(); i++) {
+		LoggableReward* lr = dynamic_cast<LoggableReward*>(rewards->rewardFuncs[i]);
+		if (lr == nullptr) continue;
+		json j;
+		lr->GetConfig()->to_json(j);
+		VOID_LOG(j);
+	}
 
 	std::vector<TerminalCondition*> terminalConditions = {
 		new TimeoutCondition(NO_TOUCH_TIMEOUT_SECS * 120 / TICK_SKIP),
@@ -263,8 +276,8 @@ int main() {
 	LearnerConfig cfg = {};
 
 	// Play around with these to see what the optimal is for your machine, more isn't always better
-	cfg.numThreads = 8;
-	cfg.numGamesPerThread = 16;
+	cfg.numThreads = 1;
+	cfg.numGamesPerThread = 1;
 
 	// We want a large itr/batch size
 	// You'll want to increase this as your bot improves, up to an extent
@@ -290,7 +303,7 @@ int main() {
 	cfg.ppo.policyLayerSizes = { 256, 256, 256 };
 	cfg.ppo.criticLayerSizes = { 256, 256, 256 };
 	
-	cfg.sendMetrics = true; // Send metrics
+	cfg.sendMetrics = false; // Send metrics
 	cfg.renderMode = not cfg.sendMetrics; // render
 	cfg.renderTimeScale = 1.5f;
 	cfg.renderDuringTraining = false; //Activate that so it doesn't override

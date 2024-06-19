@@ -1,7 +1,9 @@
 #pragma once
 #include <RLGymSim_CPP/Utils/RewardFunctions/RewardFunction.h>
 #include "LoggedCombinedReward.h"
+#include "../RLGymPPO_CPP/libsrc/json/nlohmann/json.hpp"
 
+using json = nlohmann::json;
 
 class PinchReward : public LoggableReward {
 public:
@@ -20,22 +22,31 @@ public:
 
 		//Reward for going towards the net
 		float goalDirectionW = 3.0f;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(BallHandling, ballVelW, touchW, goalDirectionSimilarity, goalDirectionW)
 	};
 
-	struct PinchArgs {
-		BallHandling ballHandling = {};
+	struct PinchArgs : public RewardConfig {
+		BallHandling ballHandling = {}; 
+
+		// Inherited via RewardConfig
+		void to_json(json& j) override;
+
 	};
 
 	PinchReward(
-		PinchArgs args
-	);
+		PinchArgs* args);
 
 	virtual void Reset(const RLGSC::GameState& initialState);
 	virtual float GetReward(const RLGSC::PlayerData& player, const RLGSC::GameState& state, const RLGSC::Action& prevAction);
 	virtual void ClearChanges() override;
-private:
-	PinchArgs config;
 
+	virtual RewardConfig* GetConfig() { return config; };
+
+
+
+private:
+	PinchArgs* config;
 	float lastBallSpeed = 0;
 };
 
@@ -123,7 +134,7 @@ public:
 		float hasFlipPunishmentWhenBall = -20.0f;
 	};
 
-	struct PinchWallSetupArgs {
+	struct PinchWallSetupArgs : public RewardConfig{
 		DistancesWallSetup distancesWallSetup = {};
 		FlipHandlingWallSetup flipHandlingWallSetup = {};
 		SimilarityWallSetup similarityWallSetup = {};
@@ -135,16 +146,18 @@ public:
 	};
 
 	PinchWallSetupReward(
-		PinchWallSetupArgs args
-	) : config(args), pinchReward(PinchReward(args.pinchRewardConfig)) {};
+		PinchWallSetupArgs* args
+	) : config(args), pinchReward(PinchReward(&args->pinchRewardConfig)) {};
 
 	virtual void Reset(const RLGSC::GameState& initialState);
 	virtual float GetReward(const RLGSC::PlayerData& player, const RLGSC::GameState& state, const RLGSC::Action& prevAction);
 	virtual void ClearChanges() override;
 	virtual void Log(RLGPC::Report& report, std::string name, float weight = 1.0f) override;
 
+	virtual RewardConfig* GetConfig() { return config; };
+
 private:
-	PinchWallSetupArgs config;
+	PinchWallSetupArgs* config;
 	PinchReward pinchReward;
 
 	float Corner(float x, short xOrientation, short yOrientation);
@@ -171,7 +184,7 @@ public:
 		//Reward for being behind the ball
 		float behindTheBallReward = 0.01f;
 
-		
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(BallGroundHandling, agentDistToBallThresh, ballDistReduction, ballOffsetX, ballOffsetY, behindTheBallReward)
 	};
 
 	struct AgentSimilarity {
@@ -184,6 +197,8 @@ public:
 
 		//Weight of the reward for the agent matching ball speed
 		float speedMatchW = 1.0f;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(AgentSimilarity, similarityBallAgentReward, similarityBallAgentThresh, speedMatchW)
 	};
 
 	struct CeilingHandling {
@@ -201,6 +216,9 @@ public:
 
 		//Punishment for being grounded in the ground ban zone
 		float ungroundedReward = 1.0f;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(CeilingHandling, distToCeilThresh, onCeilingReward, banZoneHeight, groundedBan, ungroundedReward)
+
 	};
 
 	struct GroundHandling {
@@ -224,6 +242,9 @@ public:
 
 		//Ball and agent punishment for not similarity to wall
 		float wallAgentAndBallPunishment = -2.0f;
+
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(GroundHandling, agentSimilarity, ballGroundHandling, distWallThresh, groundThresh, touchReward, wallAgentAndBallThreshold, wallAgentAndBallPunishment)
+
 	};
 
 	struct WallHandling {
@@ -238,32 +259,44 @@ public:
 
 		//Offset of Y under the ball
 		float underBallOffsetY = 100.0f;
+		NLOHMANN_DEFINE_TYPE_INTRUSIVE(WallHandling, ballDistReduction, ballHeightW, underTheBallReward)
+
 	};
 
-	struct PinchCeilingSetupArgs {
+	struct PinchCeilingSetupArgs: public RewardConfig {
 		GroundHandling groundHandling = {};
 		WallHandling wallHandling = {};
 		CeilingHandling ceilingHandling = {};
 		PinchReward::PinchArgs pinchRewardConfig = {};
+
+		// Inherited via RewardConfig
+		void to_json(json& j) override;
+
 	};
 
-	PinchCeilingSetupReward(PinchCeilingSetupArgs args): config(args), pinchReward(PinchReward(args.pinchRewardConfig)) {};
+	PinchCeilingSetupReward(PinchCeilingSetupArgs* args): config(args), pinchReward(PinchReward(&args->pinchRewardConfig)) {};
 	virtual void Reset(const RLGSC::GameState& initialState);
 	virtual float GetReward(const RLGSC::PlayerData& player, const RLGSC::GameState& state, const RLGSC::Action& prevAction);
 	virtual void ClearChanges() override;
 	virtual void Log(RLGPC::Report& report, std::string name, float weight = 1.0f) override;
+
+	virtual RewardConfig* GetConfig() { return config; };
 private:
-	PinchCeilingSetupArgs config;
+	PinchCeilingSetupArgs* config;
 	PinchReward pinchReward;
 };
 
 class PinchGroundSetupReward : public LoggableReward {
 public:
-	struct PinchGroundSetupArgs {
+	struct PinchGroundSetupArgs: public RewardConfig {
 		PinchReward::PinchArgs pinchRewardConfig = {};
+
+		// Inherited via RewardConfig
+		void to_json(json& j) override;
+
 	};
 
-	PinchGroundSetupReward(PinchGroundSetupArgs args) : config(args), pinchReward(PinchReward(args.pinchRewardConfig)) {};
+	PinchGroundSetupReward(PinchGroundSetupArgs args) : config(args), pinchReward(PinchReward(&args.pinchRewardConfig)) {};
 	virtual void Reset(const RLGSC::GameState& initialState);
 	virtual float GetReward(const RLGSC::PlayerData& player, const RLGSC::GameState& state, const RLGSC::Action& prevAction);
 	virtual void ClearChanges() override;
@@ -280,7 +313,7 @@ public:
 		PinchReward::PinchArgs pinchRewardConfig = {};
 	};
 
-	PinchTeamSetupReward(PinchTeamSetupArgs args): config(args), pinchReward(PinchReward(args.pinchRewardConfig)) {};
+	PinchTeamSetupReward(PinchTeamSetupArgs args): config(args), pinchReward(PinchReward(&args.pinchRewardConfig)) {};
 	virtual void Reset(const RLGSC::GameState& initialState);
 	virtual float GetReward(const RLGSC::PlayerData& player, const RLGSC::GameState& state, const RLGSC::Action& prevAction);
 	virtual void ClearChanges() override;
